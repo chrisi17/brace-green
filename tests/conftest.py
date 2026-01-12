@@ -15,11 +15,24 @@ def agent(request):
     """Agent URL fixture. Agent must be running before tests start."""
     url = request.config.getoption("--agent-url")
 
-    try:
-        response = httpx.get(f"{url}/.well-known/agent-card.json", timeout=2)
-        if response.status_code != 200:
-            pytest.exit(f"Agent at {url} returned status {response.status_code}", returncode=1)
-    except Exception as e:
-        pytest.exit(f"Could not connect to agent at {url}: {e}", returncode=1)
+    # Try to connect with retries (agent might still be starting)
+    max_retries = 10
+    for attempt in range(max_retries):
+        try:
+            response = httpx.get(f"{url}/.well-known/agent-card.json", timeout=5)
+            if response.status_code == 200:
+                return url
+            else:
+                if attempt < max_retries - 1:
+                    import time
+                    time.sleep(2)
+                    continue
+                pytest.exit(f"Agent at {url} returned status {response.status_code}", returncode=1)
+        except Exception as e:
+            if attempt < max_retries - 1:
+                import time
+                time.sleep(2)
+                continue
+            pytest.exit(f"Could not connect to agent at {url} after {max_retries} attempts: {e}", returncode=1)
 
     return url
