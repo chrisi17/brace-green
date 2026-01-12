@@ -38,5 +38,6 @@ EXPOSE 9001
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
 # Run the green agent server
-CMD ["uv", "run", "python", "-m", "src.evaluator.main", "--serve", "--serve-host", "0.0.0.0", "--serve-port", "9001"]
+# Note: Writeups path is set to /app/data (data repo root) since challenges are at root level
+CMD ["uv", "run", "python", "-m", "src.evaluator.main", "--serve", "--serve-host", "0.0.0.0", "--serve-port", "9001", "--writeups-path", "/app/data"]
 

@@ -289,6 +289,22 @@ def start_green_agent(
     print(f"Agent Card: http://{host}:{port}/")
     print(f"Messages Endpoint: http://{host}:{port}/messages")
     print("=" * 70)
+    
+    # Discover and list available challenges
+    try:
+        challenges = discover_all_challenges(writeups_path)
+        if challenges:
+            print(f"\n📚 Loaded {len(challenges)} CTF challenge(s):")
+            for i, challenge in enumerate(sorted(challenges), 1):
+                print(f"   {i}. {challenge}")
+        else:
+            print(f"\n⚠️  No challenges found in {writeups_path}")
+            print("   Data will be cloned from repository on first evaluation request")
+    except Exception as e:
+        print(f"\n⚠️  Could not list challenges: {e}")
+        print("   Challenges will be discovered when needed")
+    
+    print("=" * 70)
     print()
     
     app = create_app(writeups_path)
