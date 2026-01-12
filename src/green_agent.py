@@ -261,6 +261,7 @@ def create_app(writeups_path: str = "./data/agentbeats") -> Starlette:
     
     routes = [
         Route("/", handle_agent_card, methods=["GET"]),
+        Route("/.well-known/agent-card.json", handle_agent_card, methods=["GET"]),
         Route("/messages", handle_message, methods=["POST"]),
     ]
     
