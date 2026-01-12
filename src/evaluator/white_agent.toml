@@ -1,0 +1,21 @@
+name = "BraceGreen CTF Solver"
+description = "AI agent for solving capture-the-flag security challenges"
+url = "http://localhost:8000"
+version = "1.0.0"
+
+[capabilities]
+streaming = false
+pushNotifications = false
+stateTransitionHistory = false
+
+[[skills]]
+id = "ctf-solver"
+name = "CTF Challenge Solver"
+description = "Predicts next commands for penetration testing challenges"
+tags = ["security", "penetration-testing", "ctf"]
+examples = [
+    "What command should I run to enumerate services?",
+    "How do I exploit this vulnerability?",
+    "What's the next step in this CTF challenge?"
+]
+

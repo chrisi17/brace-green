@@ -1,0 +1,20 @@
+name = "BraceGreen Evaluator"
+description = "Evaluates penetration testing agents on CTF challenges"
+url = "http://localhost:9001"
+version = "1.0.0"
+
+[capabilities]
+streaming = true
+pushNotifications = true
+stateTransitionHistory = false
+
+[[skills]]
+id = "ctf-evaluator"
+name = "CTF Challenge Evaluator"
+description = "Evaluates agent performance on capture-the-flag challenges"
+tags = ["security", "penetration-testing", "evaluation"]
+examples = [
+    "Evaluate my agent on the Funbox challenge",
+    "Run all CTF challenges and report scores"
+]
+
