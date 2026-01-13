@@ -2,7 +2,7 @@
 name = "bracegreen"
 version = "0.1.0"
 description = "Green agent for evaluating LLM agents"
-requires-python = ">=3.13"
+requires-python = ">=3.13,<3.14"
 dependencies = [
     "a2a-sdk[http-server]>=0.3.20",
     "pydantic>=2.12.5",
@@ -13,9 +13,6 @@ dependencies = [
     "langchain-core>=0.3.0",
     "langchain-community>=0.3.0",
     "langchain-openai>=0.2.0",
-    "arize-phoenix>=3.0.0",
-    "openinference-instrumentation-langchain>=0.1.0",
-    "openinference-instrumentation-litellm>=0.1.0",
     "httpx>=0.28.1",
 ]
 
@@ -24,6 +21,11 @@ test = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.24.0",
     "httpx>=0.28.1",
+]
+tracing = [
+    "arize-phoenix>=3.0.0",
+    "openinference-instrumentation-langchain>=0.1.0",
+    "openinference-instrumentation-litellm>=0.1.0",
 ]
 
 [tool.hatch.build.targets.wheel]
