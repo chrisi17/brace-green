@@ -3,13 +3,13 @@ description = "Evaluates penetration testing agents on CTF challenges"
 url = "http://localhost:9001"
 version = "1.0.0"
 
+defaultInputModes = ["text", "text/plain"]
+defaultOutputModes = ["text", "text/plain"]
+
 [capabilities]
 streaming = true
 pushNotifications = true
 stateTransitionHistory = false
-
-defaultInputModes = ["text", "text/plain"]
-defaultOutputModes = ["text", "text/plain"]
 
 [[skills]]
 id = "ctf-evaluator"

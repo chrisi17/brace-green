@@ -33,7 +33,7 @@ class EvaluatorWorkflow:
         agent_interface: LLMAgentInterface,
         step_evaluator: StepEvaluator,
         max_iterations_per_step: int = 10,
-        enable_phoenix: bool = True
+        enable_phoenix: bool = False
     ):
         """Initialize the evaluator workflow.
         

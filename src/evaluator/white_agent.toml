@@ -3,6 +3,9 @@ description = "AI agent for solving capture-the-flag security challenges"
 url = "http://localhost:8000"
 version = "1.0.0"
 
+defaultInputModes = ["text", "text/plain"]
+defaultOutputModes = ["text", "text/plain"]
+
 [capabilities]
 streaming = false
 pushNotifications = false

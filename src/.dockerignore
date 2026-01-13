@@ -1,0 +1,64 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Git
+.git/
+.gitignore
+
+# Data (will be cloned at runtime)
+data/
+
+# Documentation
+*.md
+!README.md
+docs/
+
+# Examples
+examples/
+
+# Tests (except A2A conformance tests which are kept for validation)
+tests/test_a2a_conformance.py
+tests/test_prerequisite_refinement.py
+tests/test_evaluator_integration.py
+tests/__pycache__/
+
+# CI/CD
+.github/
+

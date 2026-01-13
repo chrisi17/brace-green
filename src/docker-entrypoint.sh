@@ -5,13 +5,6 @@ set -e
 DATA_REPO_URL="${DATA_REPO_URL:-https://github.com/LSX-UniWue/brace-ctf-data.git}"
 DATA_BRANCH="${DATA_BRANCH:-main}"
 DATA_DIR="/home/agent/data"
-SKIP_DATA_CLONE="${SKIP_DATA_CLONE:-false}"
-
-if [ "$SKIP_DATA_CLONE" = "true" ]; then
-    echo "⏭️  Skipping data repository clone/update (SKIP_DATA_CLONE=true)"
-    echo "🚀 Starting server..."
-    exec uv run python -m src.server "$@"
-fi
 
 echo "🔄 Fetching latest challenge data..."
 

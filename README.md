@@ -61,14 +61,50 @@ ghcr.io/lsx-uniwue/bracegreen:v1.0.0
 
 ## Architecture
 
-- **Green Agent Server**: A2A-compatible server that orchestrates CTF evaluations
+### Green Agent (Evaluator)
+- **A2A Server**: Template-based A2A-compatible server that orchestrates CTF evaluations
 - **LangGraph Workflow**: Step-by-step evaluation with semantic comparison
 - **Dynamic Data Loading**: Challenge data fetched at runtime from Git repository
-- **White Agent Interface**: Evaluates CTF-solving agents via A2A protocol
+- **Multi-Agent Support**: Can evaluate both internal LLM agents and remote A2A agents
+
+### White Agent (CTF Solver)
+- **A2A Server**: Standalone CTF solving agent following the debater template
+- **Async LLM**: Uses async LiteLLM for non-blocking command predictions
+- **Stateless**: Each evaluation gets a fresh agent context
+- **Template-Based**: Built on the official AgentBeats agent template
 
 ## License
 
 See [LICENSE](LICENSE) for details.
+
+## Running White Agent (CTF Solver)
+
+The white agent is a standalone CTF solver that can be evaluated by the green agent:
+
+```bash
+# Run white agent locally
+cd white_agent
+uv run python server.py --port 8000
+
+# Or with Docker
+docker run -p 8000:8000 \
+  -e OPENAI_API_KEY=your-api-key \
+  bracegreen-white-agent
+```
+
+## Testing
+
+```bash
+# Install test dependencies
+uv sync --extra test
+
+# Start agents
+docker run -p 9001:9001 bracegreen-evaluator &
+cd white_agent && uv run python server.py --port 8000 &
+
+# Run A2A conformance tests
+uv run pytest tests/ --agent-url http://localhost:9001
+```
 
 ## Development
 

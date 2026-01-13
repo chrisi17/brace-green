@@ -127,25 +127,6 @@ def parse_args():
         help="Base URL for API (default: from environment OPENAI_BASE_URL)"
     )
     
-    # Server mode
-    parser.add_argument(
-        "--serve",
-        action="store_true",
-        help="Run as A2A server (green agent mode)"
-    )
-    parser.add_argument(
-        "--serve-host",
-        type=str,
-        default="localhost",
-        help="Server host for A2A mode (default: localhost)"
-    )
-    parser.add_argument(
-        "--serve-port",
-        type=int,
-        default=9001,
-        help="Server port for A2A mode (default: 9001)"
-    )
-    
     # Other options
     parser.add_argument(
         "--verbose",
@@ -168,16 +149,6 @@ def main():
     
     # Parse arguments
     args = parse_args()
-    
-    # Handle server mode
-    if args.serve:
-        from ..green_agent import start_green_agent
-        start_green_agent(
-            host=args.serve_host,
-            port=args.serve_port,
-            writeups_path=args.writeups_path
-        )
-        return 0
     
     # Determine challenge list
     if args.challenges:
