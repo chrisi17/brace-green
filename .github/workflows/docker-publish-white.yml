@@ -1,0 +1,140 @@
+name: Build and Publish White Agent Docker Image
+
+on:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, master ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}-white
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+      
+      - name: Set up Python
+        run: uv python install 3.13
+      
+      - name: Install dependencies
+        run: uv sync --extra test
+      
+      - name: Build Docker image for testing
+        run: docker build -f Dockerfile.white -t bracegreen-white-test .
+      
+      - name: Start white agent container
+        run: |
+          echo "Starting white agent container..."
+          docker run -d --name white-agent -p 8000:8000 \
+            -e OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}" \
+            -e OPENAI_BASE_URL="${{ secrets.OPENAI_BASE_URL }}" \
+            bracegreen-white-test
+          echo "Container started. Checking status:"
+          docker ps -a | grep white-agent
+          echo ""
+          echo "Initial container logs:"
+          sleep 3
+          docker logs white-agent || true
+      
+      - name: Wait for agent to be ready
+        run: |
+          echo "Waiting for agent to be ready (checking /.well-known/agent-card.json)..."
+          MAX_ATTEMPTS=30
+          ATTEMPT=0
+          
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+            
+            # Check if container is still running
+            if ! docker ps | grep -q white-agent; then
+              echo "✗ Container stopped unexpectedly!"
+              echo "Container logs:"
+              docker logs white-agent
+              exit 1
+            fi
+            
+            # Try to connect to agent card endpoint
+            if curl -f -s http://localhost:8000/.well-known/agent-card.json > /dev/null 2>&1; then
+              echo "✓ Agent is ready after $ATTEMPT attempts!"
+              echo ""
+              echo "Agent card response:"
+              curl -s http://localhost:8000/.well-known/agent-card.json | head -30
+              exit 0
+            fi
+            
+            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: Agent not ready yet..."
+            if [ $((ATTEMPT % 5)) -eq 0 ]; then
+              echo "Recent container logs:"
+              docker logs --tail 20 white-agent
+            fi
+            sleep 2
+          done
+          
+          echo "✗ Timeout: Agent did not become ready after $MAX_ATTEMPTS attempts"
+          echo ""
+          echo "Container status:"
+          docker ps -a | grep white-agent
+          echo ""
+          echo "Full container logs:"
+          docker logs white-agent
+          exit 1
+      
+      - name: Show agent logs on failure
+        if: failure()
+        run: docker logs white-agent
+      
+      - name: Stop containers
+        if: always()
+        run: docker stop white-agent && docker rm white-agent
+
+  build-and-publish:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Log in to Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest,enable={{is_default_branch}}
+      
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.white
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
