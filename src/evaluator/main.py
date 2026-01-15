@@ -65,8 +65,8 @@ def parse_args():
     parser.add_argument(
         "--agent-model",
         type=str,
-        default="gpt-5",
-        help="Model for the agent under test (default: gpt-5) [internal mode only]"
+        default="gpt-5.1",
+        help="Model for the agent under test (default: gpt-5.1) [internal mode only]"
     )
     parser.add_argument(
         "--agent-temperature",
@@ -91,8 +91,8 @@ def parse_args():
     parser.add_argument(
         "--evaluator-model",
         type=str,
-        default="gpt-5",
-        help="Model for the evaluator (default: gpt-5)"
+        default="gpt-5.1",
+        help="Model for the evaluator (default: gpt-5.1)"
     )
     parser.add_argument(
         "--evaluator-max-tokens",

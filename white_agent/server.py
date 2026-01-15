@@ -18,7 +18,7 @@ def main():
     parser.add_argument("--host", type=str, default="0.0.0.0", help="Host to bind the server")
     parser.add_argument("--port", type=int, default=8000, help="Port to bind the server")
     parser.add_argument("--card-url", type=str, help="URL to advertise in the agent card")
-    parser.add_argument("--model", type=str, default="gpt-5", help="LLM model to use")
+    parser.add_argument("--model", type=str, default="gpt-5.1", help="LLM model to use")
     parser.add_argument("--temperature", type=float, default=0.7, help="Sampling temperature")
     parser.add_argument("--max-tokens", type=int, default=500, help="Max tokens in response")
     parser.add_argument("--task-mode", type=str, default="command", 

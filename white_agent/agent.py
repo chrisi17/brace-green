@@ -95,7 +95,7 @@ class Agent:
     
     def __init__(
         self, 
-        model: str = "gpt-5", 
+        model: str = "gpt-5.1", 
         temperature: float = 0.7, 
         max_tokens: int = 500,
         task_mode: str = "command",
