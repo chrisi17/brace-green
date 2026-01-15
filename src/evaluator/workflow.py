@@ -749,13 +749,15 @@ class EvaluatorWorkflow:
             
             # Store evaluation result for use in record_result_node
             # Use accumulated commands if available, otherwise last prediction
-            matched_command = accumulated if accumulated else state["agent_predictions"][-1]
+            agent_prediction = accumulated if accumulated else state["agent_predictions"][-1]
+            # Always store the agent's prediction (for both matched and unmatched cases)
+            eval_result["agent_prediction"] = agent_prediction
             if eval_result["completed"]:
-                eval_result["matched_command"] = matched_command
+                eval_result["matched_command"] = agent_prediction
             
             return {
                 "current_step_goal_reached": goal_check["goal_reached"],
-                "_step_eval_result": eval_result if eval_result["completed"] else None,
+                "_step_eval_result": eval_result,  # Always pass eval_result (not just on match)
                 "_is_fine_grained": False,
                 "_accumulated_commands": None
             }
@@ -778,16 +780,23 @@ class EvaluatorWorkflow:
         # Determine field names based on task mode
         if task_mode == "goal":
             original_field = "original_goal"
-            matched_field = "matched_goal"
+            matched_field = "matched_prediction"
+            unmatched_field = "unmatched_prediction"
             source_field = "goal"
         elif task_mode == "anticipated_result":
             original_field = "original_anticipated_result"
-            matched_field = "matched_anticipated_result"
+            matched_field = "matched_prediction"
+            unmatched_field = "unmatched_prediction"
             source_field = "results"  # Use "results" field from steps_enriched.json
         else:  # command
             original_field = "original_command"
-            matched_field = "matched_command"
+            matched_field = "matched_prediction"
+            unmatched_field = "unmatched_prediction"
             source_field = "command"
+        
+        # Extract agent's prediction if available
+        agent_prediction = eval_result.get("agent_prediction") if eval_result else None
+        
         if "or" in step_data:
             # Step with alternatives
             or_results = []
@@ -804,7 +813,12 @@ class EvaluatorWorkflow:
                         # Mark as completed if this alternative matched
                         if eval_result and eval_result["matched_alternative_index"] == i:
                             sub_result["completed"] = True
-                            sub_result[matched_field] = eval_result["matched_command"]
+                            if agent_prediction:
+                                sub_result[matched_field] = agent_prediction
+                        else:
+                            # Add unmatched prediction for non-matching alternatives
+                            if agent_prediction:
+                                sub_result[unmatched_field] = agent_prediction
                         sub_results.append(sub_result)
                     or_results.append(sub_results)
                 else:
@@ -817,18 +831,28 @@ class EvaluatorWorkflow:
                     # Mark as completed if this alternative matched
                     if eval_result and eval_result["matched_alternative_index"] == i:
                         alt_result["completed"] = True
-                        alt_result[matched_field] = eval_result["matched_command"]
+                        if agent_prediction:
+                            alt_result[matched_field] = agent_prediction
+                    else:
+                        # Add unmatched prediction for non-matching alternatives
+                        if agent_prediction:
+                            alt_result[unmatched_field] = agent_prediction
                     or_results.append(alt_result)
             return {"or": or_results}
         else:
             # Single step without alternatives
+            is_completed = eval_result and eval_result.get("completed", False)
             result = {
-                "completed": eval_result is not None,
+                "completed": is_completed,
                 original_field: step_data.get(source_field, ""),
                 "gold": step_data.get("gold", False)
             }
-            if eval_result:
-                result[matched_field] = eval_result["matched_command"]
+            # Add prediction with appropriate field name
+            if agent_prediction:
+                if is_completed:
+                    result[matched_field] = agent_prediction
+                else:
+                    result[unmatched_field] = agent_prediction
             return result
     
     # Conditional edge functions

@@ -25,11 +25,19 @@ TERMINAL_STATES = {
 
 
 class Executor(AgentExecutor):
-    def __init__(self, model: str = "gpt-4o", temperature: float = 0.7, max_tokens: int = 500, task_mode: str = "command"):
+    def __init__(
+        self, 
+        model: str = "gpt-4o", 
+        temperature: float = 0.7, 
+        max_tokens: int = 500, 
+        task_mode: str = "command",
+        mock_mode: bool = False
+    ):
         self.model = model
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.task_mode = task_mode
+        self.mock_mode = mock_mode
         self.agents: dict[str, Agent] = {}
 
     async def execute(self, context: RequestContext, event_queue: EventQueue) -> None:
@@ -60,7 +68,8 @@ class Executor(AgentExecutor):
                     model=self.model,
                     temperature=self.temperature,
                     max_tokens=self.max_tokens,
-                    task_mode=self.task_mode
+                    task_mode=self.task_mode,
+                    mock_mode=self.mock_mode
                 )
                 self.agents[context_id] = agent
 

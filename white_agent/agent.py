@@ -1,4 +1,5 @@
 import os
+import logging
 from dotenv import load_dotenv
 from litellm import acompletion
 
@@ -6,7 +7,16 @@ from a2a.server.tasks import TaskUpdater
 from a2a.types import Message, Part, TaskState, TextPart
 from a2a.utils import get_message_text, new_agent_text_message
 
+from mock_agent import MockAgent
+
 load_dotenv()
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(message)s'
+)
+logger = logging.getLogger(__name__)
 
 
 SYSTEM_PROMPTS = {
@@ -65,15 +75,25 @@ class Agent:
         model: str = "gpt-4o", 
         temperature: float = 0.7, 
         max_tokens: int = 500,
-        task_mode: str = "command"
+        task_mode: str = "command",
+        mock_mode: bool = False
     ):
         self.model = model
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.task_mode = task_mode
+        self.mock_mode = mock_mode
         self.api_key = os.getenv("OPENAI_API_KEY")
         self.base_url = os.getenv("OPENAI_BASE_URL")
         self.system_prompt = SYSTEM_PROMPTS.get(task_mode, SYSTEM_PROMPTS["command"])
+        
+        # Initialize mock agent if in mock mode
+        if self.mock_mode:
+            self.mock_agent = MockAgent(task_mode=task_mode)
+            logger.info(f"Initialized white agent in MOCK mode (task_mode={task_mode})")
+        else:
+            self.mock_agent = None
+            logger.info(f"Initialized white agent in LLM mode (model={model}, task_mode={task_mode})")
 
     async def run(self, message: Message, updater: TaskUpdater) -> None:
         """Process incoming message and generate CTF command prediction.
@@ -83,24 +103,42 @@ class Agent:
             updater: Task updater for sending progress and results
         """
         context = get_message_text(message)
+        
+        # Log incoming task
+        logger.info("=" * 70)
+        logger.info("WHITE AGENT: Prompted with task:")
+        logger.info("-" * 70)
+        logger.info(context)
+        logger.info("-" * 70)
 
         await updater.update_status(TaskState.working, new_agent_text_message("Analyzing scenario..."))
 
-        # Use async LiteLLM to generate prediction
         try:
-            response = await acompletion(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": self.system_prompt},
-                    {"role": "user", "content": context}
-                ],
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
-                api_key=self.api_key,
-                base_url=self.base_url
-            )
+            if self.mock_mode:
+                # Use mock agent for deterministic replay
+                prediction = await self.mock_agent.predict(context)
+            else:
+                # Use async LiteLLM to generate prediction
+                response = await acompletion(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": self.system_prompt},
+                        {"role": "user", "content": context}
+                    ],
+                    temperature=self.temperature,
+                    max_tokens=self.max_tokens,
+                    api_key=self.api_key,
+                    base_url=self.base_url
+                )
+                
+                prediction = response.choices[0].message.content.strip()
             
-            prediction = response.choices[0].message.content.strip()
+            # Log response
+            logger.info("WHITE AGENT: Returning answer:")
+            logger.info("-" * 70)
+            logger.info(prediction)
+            logger.info("=" * 70)
+            logger.info("")
             
             await updater.add_artifact(
                 parts=[Part(root=TextPart(text=prediction))],

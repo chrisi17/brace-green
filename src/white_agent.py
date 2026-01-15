@@ -7,6 +7,7 @@ allowing it to be called remotely by evaluators or other systems.
 import uvicorn
 import tomllib
 import os
+import logging
 from typing import Dict, Any
 from pathlib import Path
 from dotenv import load_dotenv
@@ -19,6 +20,13 @@ from starlette.requests import Request
 from .evaluator.agent_interface import LLMAgentInterface
 
 load_dotenv()
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(message)s'
+)
+logger = logging.getLogger(__name__)
 
 
 class WhiteAgentExecutor:
@@ -130,8 +138,22 @@ async def handle_message(request: Request) -> JSONResponse:
         # Get executor from app state
         executor = request.app.state.executor
         
+        # Log incoming task
+        logger.info("=" * 70)
+        logger.info("WHITE AGENT: Prompted with task:")
+        logger.info("-" * 70)
+        logger.info(text_content)
+        logger.info("-" * 70)
+        
         # Get prediction from agent
         prediction = await executor.execute(text_content, context_id)
+        
+        # Log response
+        logger.info("WHITE AGENT: Returning answer:")
+        logger.info("-" * 70)
+        logger.info(prediction)
+        logger.info("=" * 70)
+        logger.info("")
         
         # Format A2A response
         response = {
@@ -237,7 +259,12 @@ def start_white_agent(
         api_key=api_key,
         base_url=base_url
     )
-    uvicorn.run(app, host=host, port=port)
+    
+    # Reduce uvicorn access log verbosity
+    uvicorn_log_config = uvicorn.config.LOGGING_CONFIG
+    uvicorn_log_config["loggers"]["uvicorn.access"]["level"] = "WARNING"
+    
+    uvicorn.run(app, host=host, port=port, log_config=uvicorn_log_config)
 
 
 if __name__ == "__main__":

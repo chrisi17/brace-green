@@ -18,6 +18,7 @@ TEMPERATURE="${WHITE_AGENT_TEMPERATURE:-0.7}"
 MAX_TOKENS="${WHITE_AGENT_MAX_TOKENS:-500}"
 TASK_MODE="${WHITE_AGENT_TASK_MODE:-command}"
 CARD_URL="${WHITE_AGENT_CARD_URL:-}"
+MOCK_MODE="${WHITE_AGENT_MOCK_MODE:-false}"
 
 # Parse command-line arguments
 while [[ $# -gt 0 ]]; do
@@ -50,6 +51,10 @@ while [[ $# -gt 0 ]]; do
             CARD_URL="$2"
             shift 2
             ;;
+        --mock-mode)
+            MOCK_MODE="true"
+            shift
+            ;;
         *)
             # Unknown argument, pass through
             CMD="$CMD $1"
@@ -69,6 +74,11 @@ CMD="$CMD --task-mode $TASK_MODE"
 # Add card-url if provided
 if [ -n "$CARD_URL" ]; then
     CMD="$CMD --card-url $CARD_URL"
+fi
+
+# Add mock-mode flag if enabled
+if [ "$MOCK_MODE" = "true" ]; then
+    CMD="$CMD --mock-mode"
 fi
 
 echo "Starting white agent with: $CMD"

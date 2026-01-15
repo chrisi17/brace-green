@@ -24,23 +24,27 @@ def main():
     parser.add_argument("--task-mode", type=str, default="command", 
                        choices=["command", "anticipated_result", "goal"],
                        help="Task mode: command, anticipated_result, or goal")
+    parser.add_argument("--mock-mode", action="store_true", 
+                       help="Enable deterministic mock mode (replays from evaluation results)")
     args = parser.parse_args()
 
     # Update skill description based on task mode
+    mode_suffix = " (MOCK MODE - deterministic replay)" if args.mock_mode else ""
+    
     if args.task_mode == "command":
-        skill_description = "Solves capture-the-flag challenges by predicting the next command to execute"
+        skill_description = f"Solves capture-the-flag challenges by predicting the next command to execute{mode_suffix}"
         skill_examples = [
             "Given a reconnaissance scenario, predict the next command to identify the target",
             "Solve a privilege escalation challenge step by step"
         ]
     elif args.task_mode == "anticipated_result":
-        skill_description = "Solves capture-the-flag challenges by identifying what information or state change is needed"
+        skill_description = f"Solves capture-the-flag challenges by identifying what information or state change is needed{mode_suffix}"
         skill_examples = [
             "Identify what information is needed to progress in a reconnaissance scenario",
             "Determine what state change is required for privilege escalation"
         ]
     else:  # goal
-        skill_description = "Solves capture-the-flag challenges by identifying step objectives"
+        skill_description = f"Solves capture-the-flag challenges by identifying step objectives{mode_suffix}"
         skill_examples = [
             "Identify the goal of the current reconnaissance step",
             "Determine the objective of a privilege escalation step"
@@ -74,7 +78,8 @@ def main():
             model=args.model,
             temperature=args.temperature,
             max_tokens=args.max_tokens,
-            task_mode=args.task_mode
+            task_mode=args.task_mode,
+            mock_mode=args.mock_mode
         ),
         task_store=InMemoryTaskStore(),
     )
@@ -82,7 +87,12 @@ def main():
         agent_card=agent_card,
         http_handler=request_handler,
     )
-    uvicorn.run(server.build(), host=args.host, port=args.port)
+    
+    # Reduce uvicorn access log verbosity
+    uvicorn_log_config = uvicorn.config.LOGGING_CONFIG
+    uvicorn_log_config["loggers"]["uvicorn.access"]["level"] = "WARNING"
+    
+    uvicorn.run(server.build(), host=args.host, port=args.port, log_config=uvicorn_log_config)
 
 
 if __name__ == "__main__":
