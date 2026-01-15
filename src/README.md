@@ -173,8 +173,8 @@ uv run python -m src.evaluator.main --challenge Funbox --agent-url http://localh
 # Custom configuration
 uv run python -m src.evaluator.main \
   --challenge Funbox \
-  --agent-model gpt-4o \
-  --evaluator-model gpt-4o \
+  --agent-model gpt-5 \
+  --evaluator-model gpt-5 \
   --max-iterations 10 \
   --output results.json
 ```

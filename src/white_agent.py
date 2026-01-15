@@ -34,7 +34,7 @@ class WhiteAgentExecutor:
     
     def __init__(
         self,
-        model: str = "gpt-4o",
+        model: str = "gpt-5",
         temperature: float = 0.7,
         max_tokens: int = 500,
         api_key: str = None,
@@ -181,7 +181,7 @@ async def handle_message(request: Request) -> JSONResponse:
 
 
 def create_app(
-    model: str = "gpt-4o",
+    model: str = "gpt-5",
     temperature: float = 0.7,
     max_tokens: int = 500,
     api_key: str = None,
@@ -222,7 +222,7 @@ def create_app(
 def start_white_agent(
     host: str = "localhost",
     port: int = 8000,
-    model: str = "gpt-4o",
+    model: str = "gpt-5",
     temperature: float = 0.7,
     max_tokens: int = 500,
     api_key: str = None,
@@ -275,7 +275,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--host", default="localhost", help="Server host")
     parser.add_argument("--port", type=int, default=8000, help="Server port")
-    parser.add_argument("--model", default="gpt-4o", help="LLM model name")
+    parser.add_argument("--model", default="gpt-5", help="LLM model name")
     parser.add_argument("--temperature", type=float, default=0.7, help="Temperature")
     parser.add_argument("--max-tokens", type=int, default=500, help="Max tokens")
     parser.add_argument("--api-key", default=None, help="API key")

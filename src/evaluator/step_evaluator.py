@@ -16,7 +16,7 @@ class StepEvaluator(Runnable):
     
     def __init__(
         self,
-        model: str = "gpt-4o",
+        model: str = "gpt-5",
         max_tokens: int = 2000,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
@@ -1030,7 +1030,7 @@ class StepEvaluator(Runnable):
             Configured StepEvaluator instance
         """
         return cls(
-            model=config.get("model", "gpt-4o"),
+            model=config.get("model", "gpt-5"),
             max_tokens=config.get("max_tokens", 2000),
             api_key=config.get("api_key"),
             base_url=config.get("base_url")

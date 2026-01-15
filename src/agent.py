@@ -166,7 +166,7 @@ class Agent:
 
         # Create step evaluator
         print("Creating step evaluator...")
-        evaluator_model = evaluator_config.get("model", "gpt-4o")
+        evaluator_model = evaluator_config.get("model", "gpt-5")
         evaluator_max_tokens = evaluator_config.get("max_tokens", 2000)
         api_key = evaluator_config.get("api_key") or os.getenv("OPENAI_API_KEY")
         base_url = evaluator_config.get("base_url") or os.getenv("OPENAI_BASE_URL")
@@ -201,7 +201,7 @@ class Agent:
 
             try:
                 agent_llm_config = {
-                    "model": agent_config.get("model", "gpt-4o"),
+                    "model": agent_config.get("model", "gpt-5"),
                     "temperature": agent_config.get("temperature", 0.0),
                     "max_tokens": agent_config.get("max_tokens", 500),
                 }
