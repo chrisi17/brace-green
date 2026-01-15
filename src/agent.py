@@ -97,6 +97,21 @@ class Agent:
         max_iterations = request.config.get("max_iterations", 10)
         enable_phoenix = request.config.get("enable_phoenix", False)
         include_goal = request.config.get("include_goal", "always")
+        include_tactic = request.config.get("include_tactic", "always")
+        include_prerequisites = request.config.get("include_prerequisites", "always")
+        evaluation_protocol = request.config.get("evaluation_protocol", "match_alternatives")
+        task_mode = request.config.get("task_mode", "command")
+        history_context = request.config.get("history_context", ["goal", "command", "output", "results"])
+        
+        # Validate incompatible option combinations
+        if task_mode == "goal" and include_goal == "always":
+            error_msg = (
+                "Invalid configuration: When task_mode is 'goal', include_goal cannot be 'always'. "
+                "Otherwise the agent would always be given the answer it should predict. "
+                "Use 'never' for full challenge, or 'first' to show one example then test."
+            )
+            await updater.reject(new_agent_text_message(error_msg))
+            return
         
         # Production mode override (when running in Docker)
         is_production = os.getenv("BRACEGREEN_PRODUCTION", "false").lower() == "true"
@@ -134,6 +149,9 @@ class Agent:
 
         # Create agent interface
         print(f"Creating agent interface in {agent_config['mode']} mode...")
+        # Pass evaluation_protocol and task_mode to agent interface
+        agent_config["evaluation_protocol"] = evaluation_protocol
+        agent_config["task_mode"] = task_mode
         agent_interface = create_agent_interface(agent_config)
 
         # Create step evaluator
@@ -147,7 +165,9 @@ class Agent:
             model=evaluator_model,
             max_tokens=evaluator_max_tokens,
             api_key=api_key,
-            base_url=base_url
+            base_url=base_url,
+            evaluation_protocol=evaluation_protocol,
+            task_mode=task_mode
         )
 
         # Create workflow
@@ -157,7 +177,10 @@ class Agent:
             step_evaluator=step_evaluator,
             max_iterations_per_step=max_iterations,
             enable_phoenix=enable_phoenix,
-            include_goal=include_goal
+            include_goal=include_goal,
+            include_tactic=include_tactic,
+            include_prerequisites=include_prerequisites,
+            history_context=history_context
         )
 
         all_results = []
@@ -169,7 +192,7 @@ class Agent:
             try:
                 agent_llm_config = {
                     "model": agent_config.get("model", "gpt-4o"),
-                    "temperature": agent_config.get("temperature", 0.7),
+                    "temperature": agent_config.get("temperature", 0.0),
                     "max_tokens": agent_config.get("max_tokens", 500),
                 }
 
@@ -239,6 +262,11 @@ class Agent:
                     "challenges_evaluated": len(challenges_to_evaluate),
                     "max_iterations": max_iterations,
                     "include_goal": include_goal,
+                    "include_tactic": include_tactic,
+                    "include_prerequisites": include_prerequisites,
+                    "history_context": history_context,
+                    "evaluation_protocol": evaluation_protocol,
+                    "task_mode": task_mode,
                     "timeout": agent_config.get("timeout"),
                     "results": all_results
                 }))

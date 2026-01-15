@@ -16,7 +16,6 @@ RUN \
     --mount=type=cache,target=/home/agentbeats/.cache/uv,uid=1000 \
     uv sync --locked --no-dev
 
-ENTRYPOINT ["uv", "run", "white_agent/server.py"]
-CMD ["--host", "0.0.0.0", "--port", "8000"]
+ENTRYPOINT ["white_agent/docker-entrypoint.sh"]
 EXPOSE 8000
 

@@ -106,6 +106,40 @@ def parse_args():
         help="When to include goals in prompts: 'first' (first step only), 'always' (all steps), 'never' (no steps) (default: always)"
     )
     parser.add_argument(
+        "--include-tactic",
+        type=str,
+        choices=["first", "always", "never"],
+        default="always",
+        help="When to include tactics in prompts: 'first' (first step only), 'always' (all steps), 'never' (no steps) (default: always)"
+    )
+    parser.add_argument(
+        "--include-prerequisites",
+        type=str,
+        choices=["first", "always", "never"],
+        default="always",
+        help="When to include prerequisites in prompts: 'first' (first step only), 'always' (all steps), 'never' (no steps) (default: always)"
+    )
+    parser.add_argument(
+        "--history-context",
+        type=str,
+        default="goal,command,output,results",
+        help="Comma-separated list of fields to include in context history: goal, command, output, results (default: all)"
+    )
+    parser.add_argument(
+        "--evaluation-protocol",
+        type=str,
+        choices=["match_alternatives", "single_path"],
+        default="match_alternatives",
+        help="Evaluation protocol: 'match_alternatives' (match against all alternatives), 'single_path' (validate against gold standard only) (default: match_alternatives)"
+    )
+    parser.add_argument(
+        "--task-mode",
+        type=str,
+        choices=["command", "anticipated_result", "goal"],
+        default="command",
+        help="Task mode: 'command' (predict commands), 'anticipated_result' (predict information/state changes), 'goal' (predict step goal) (default: command)"
+    )
+    parser.add_argument(
         "--writeups-path",
         type=str,
         default="./data",
@@ -157,6 +191,13 @@ def main():
     # Parse arguments
     args = parse_args()
     
+    # Validate incompatible option combinations
+    if args.task_mode == "goal" and args.include_goal == "always":
+        print("Error: When task_mode is 'goal', --include-goal cannot be 'always'")
+        print("       (Otherwise the agent would always be given the answer it should predict)")
+        print("       Use 'never' for full challenge, or 'first' to show one example then test")
+        sys.exit(1)
+    
     # Determine challenge list
     if args.challenges:
         if args.challenges.lower() == "all":
@@ -198,7 +239,9 @@ def main():
         agent_config = {
             "mode": "a2a",
             "agent_url": args.agent_url,
-            "timeout": args.agent_timeout
+            "timeout": args.agent_timeout,
+            "evaluation_protocol": args.evaluation_protocol,
+            "task_mode": args.task_mode
         }
     else:
         agent_mode = "internal"
@@ -208,7 +251,9 @@ def main():
             "temperature": args.agent_temperature,
             "max_tokens": args.agent_max_tokens,
             "api_key": api_key,
-            "base_url": base_url
+            "base_url": base_url,
+            "evaluation_protocol": args.evaluation_protocol,
+            "task_mode": args.task_mode
         }
     
     # Determine output path
@@ -250,17 +295,26 @@ def main():
             model=args.evaluator_model,
             max_tokens=args.evaluator_max_tokens,
             api_key=api_key,
-            base_url=base_url
+            base_url=base_url,
+            evaluation_protocol=args.evaluation_protocol,
+            task_mode=args.task_mode
         )
         
         # Create workflow
         print("Building evaluation workflow...")
+        
+        # Parse history context fields
+        history_context_fields = [field.strip() for field in args.history_context.split(",")]
+        
         workflow = EvaluatorWorkflow(
             agent_interface=agent_interface,
             step_evaluator=step_evaluator,
             max_iterations_per_step=args.max_iterations,
             enable_phoenix=not args.no_phoenix,
-            include_goal=args.include_goal
+            include_goal=args.include_goal,
+            include_tactic=args.include_tactic,
+            include_prerequisites=args.include_prerequisites,
+            history_context=history_context_fields
         )
         
         # Run evaluation (single or batch)

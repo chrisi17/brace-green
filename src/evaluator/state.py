@@ -26,6 +26,11 @@ class EvaluationState(TypedDict, total=False):
     evaluator_llm_config: Dict[str, Any]
     max_iterations_per_step: int
     include_goal: str  # "first", "always", or "never"
+    include_tactic: str  # "first", "always", or "never"
+    include_prerequisites: str  # "first", "always", or "never"
+    history_context: List[str]  # Fields to include in context history: "goal", "command", "output", "results"
+    evaluation_protocol: str  # "match_alternatives" or "single_path"
+    task_mode: str  # "command", "anticipated_result", or "goal"
     
     # Current iteration state
     current_iteration: int

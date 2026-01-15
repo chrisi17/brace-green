@@ -34,7 +34,10 @@ class EvaluatorWorkflow:
         step_evaluator: StepEvaluator,
         max_iterations_per_step: int = 10,
         enable_phoenix: bool = False,
-        include_goal: str = "always"
+        include_goal: str = "always",
+        include_tactic: str = "always",
+        include_prerequisites: str = "always",
+        history_context: List[str] = None
     ):
         """Initialize the evaluator workflow.
         
@@ -44,12 +47,22 @@ class EvaluatorWorkflow:
             max_iterations_per_step: Maximum iterations per step
             enable_phoenix: Whether to enable Phoenix tracing (default: True)
             include_goal: When to include goals in prompts: "first", "always", or "never" (default: "always")
+            include_tactic: When to include tactics in prompts: "first", "always", or "never" (default: "always")
+            include_prerequisites: When to include prerequisites in prompts: "first", "always", or "never" (default: "always")
+            history_context: Fields to include in context history: "goal", "command", "output", "results" 
+                           (default: all fields)
         """
         self.agent_interface = agent_interface
         self.step_evaluator = step_evaluator
         self.max_iterations_per_step = max_iterations_per_step
         self.enable_phoenix = enable_phoenix and PHOENIX_AVAILABLE
         self.include_goal = include_goal
+        self.include_tactic = include_tactic
+        self.include_prerequisites = include_prerequisites
+        self.history_context = history_context if history_context is not None else ["goal", "command", "output", "results"]
+        
+        # Store evaluation protocol for potential use
+        self.evaluation_protocol = step_evaluator.evaluation_protocol
         
         # Check if Phoenix is already initialized (should be done in main.py)
         # If already initialized, the tracer provider will be active
@@ -202,18 +215,74 @@ class EvaluatorWorkflow:
             Updated state fields
         """
         step_index = state["current_step_index"]
+        task_mode = state.get("task_mode", "command")
+        include_goal = state.get("include_goal", "always")
         
-        # Extract goal for logging
+        # Special case: Skip evaluation of step 0 when task_mode=goal and include_goal=first
+        # This step serves as an example - show what a goal looks like
+        if step_index == 0 and task_mode == "goal" and include_goal == "first":
+            current_step = state["steps"][step_index]
+            reference_alt = self._get_gold_alternative(current_step)
+            
+            # Handle multi-step alternatives (list) vs single step (dict)
+            if isinstance(reference_alt, list):
+                goal = reference_alt[0].get("goal", "Unknown goal") if reference_alt else "Unknown goal"
+            else:
+                goal = reference_alt.get("goal", "Unknown goal")
+            
+            print(f"\n=== Step {step_index + 1}/{len(state['steps'])} (Example - Not Evaluated) ===")
+            print(f"Goal: {goal}")
+            print(f"⚠ Skipping evaluation of first step (task_mode=goal + include_goal=first)")
+            print(f"  This step will be added to context as an example of what a goal looks like")
+            print(f"  Actual evaluation starts from step 2\n")
+            
+            # Build result for this step (NOT marking as completed)
+            step_result = self._build_step_result(current_step, None)
+            # Mark this as an example step that doesn't count toward score
+            step_result["_example_step"] = True
+            # Mark the gold alternative as NOT completed (it's just an example)
+            if "or" in step_result:
+                for alt in step_result["or"]:
+                    if isinstance(alt, list):
+                        if alt and alt[0].get("gold", False):
+                            alt[0]["completed"] = False
+                            alt[0]["_example_step"] = True
+                    elif alt.get("gold", False):
+                        alt["completed"] = False
+                        alt["_example_step"] = True
+            else:
+                step_result["completed"] = False
+                step_result["_example_step"] = True
+            
+            # Build context entry for this example step
+            history_fields = state.get("history_context", ["goal", "command", "output", "results"])
+            context_entry = self._build_context_entry(current_step, None, history_fields)
+            new_history = state.get("context_history", []) + [context_entry]
+            
+            # Move directly to next step
+            return {
+                "current_step_index": step_index + 1,
+                "context_history": new_history,
+                "completed_results": state.get("completed_results", []) + [step_result],
+                "agent_predictions": [],
+                "current_iteration": 0,
+                "current_step_goal_reached": False,
+                "_is_fine_grained": False,
+                "_accumulated_commands": None,
+                "_step_eval_result": None
+            }
+        
+        # Extract goal for logging (use gold alternative)
         if step_index < len(state["steps"]):
             current_step = state["steps"][step_index]
-            if "or" in current_step:
-                reference_alt = current_step["or"][0]
-                if isinstance(reference_alt, list):
-                    reference_alt = reference_alt[0]
+            reference_alt = self._get_gold_alternative(current_step)
+            # Handle multi-step alternatives (list) vs single step (dict)
+            if isinstance(reference_alt, list):
+                goal = reference_alt[0].get("goal", "Unknown goal") if reference_alt else "Unknown goal"
+                tactic = reference_alt[0].get("tactic", "") if reference_alt else ""
             else:
-                reference_alt = current_step
-            goal = reference_alt.get("goal", "Unknown goal")
-            tactic = reference_alt.get("tactic", "")
+                goal = reference_alt.get("goal", "Unknown goal")
+                tactic = reference_alt.get("tactic", "")
             
             print(f"\n=== Preparing step {step_index + 1}/{len(state['steps'])} ===")
             print(f"Goal: {goal}")
@@ -244,14 +313,13 @@ class EvaluatorWorkflow:
         step_index = state["current_step_index"]
         current_step = state["steps"][step_index]
         
-        # Extract goal for logging
-        if "or" in current_step:
-            reference_alt = current_step["or"][0]
-            if isinstance(reference_alt, list):
-                reference_alt = reference_alt[0]
+        # Extract goal for logging (use gold alternative)
+        reference_alt = self._get_gold_alternative(current_step)
+        # Handle multi-step alternatives (list) vs single step (dict)
+        if isinstance(reference_alt, list):
+            goal = reference_alt[0].get("goal", "Unknown goal") if reference_alt else "Unknown goal"
         else:
-            reference_alt = current_step
-        goal = reference_alt.get("goal", "Unknown goal")
+            goal = reference_alt.get("goal", "Unknown goal")
         
         print(f"=== Evaluating step {step_index + 1} ===")
         print(f"Goal: {goal}\n")
@@ -295,17 +363,19 @@ class EvaluatorWorkflow:
         new_completed_results = state["completed_results"] + [step_result]
         
         # Add to context history for future steps (gold standard path)
-        if "or" in current_step:
-            reference_alt = current_step["or"][0]
-            if isinstance(reference_alt, list):
-                reference_alt = reference_alt[0]
-        else:
-            reference_alt = current_step
-        
-        goal = reference_alt.get("goal", "")
-        context_entry = f"Completed: {goal}"
+        # Use configured history fields to build the context entry
+        history_fields = state.get("history_context", ["goal", "command", "output", "results"])
+        context_entry = self._build_context_entry(current_step, eval_result, history_fields)
         
         new_history = state["context_history"] + [context_entry]
+        
+        # Extract goal for display purposes (use gold alternative)
+        reference_alt = self._get_gold_alternative(current_step)
+        # Handle multi-step alternatives (list) vs single step (dict)
+        if isinstance(reference_alt, list):
+            goal = reference_alt[0].get("goal", "") if reference_alt else ""
+        else:
+            goal = reference_alt.get("goal", "")
         
         # Show result status
         if eval_result and eval_result.get("completed"):
@@ -324,6 +394,129 @@ class EvaluatorWorkflow:
             "_is_fine_grained": False  # Reset fine-grained flag
         }
     
+    def _get_gold_alternative(self, step_data: Dict[str, Any]) -> Any:
+        """Extract gold standard alternative from step data.
+        
+        In the step data structure, each step with alternatives has exactly one marked
+        as gold: true and zero or more marked as gold: false. This method finds and
+        returns the gold standard alternative.
+        
+        Args:
+            step_data: The step data which may contain "or" alternatives
+            
+        Returns:
+            - For single steps (no "or"): returns the step itself (dict)
+            - For atomic gold alternatives: returns the dict
+            - For multi-step gold alternatives: returns the FULL list of steps
+            Falls back to first alternative if no gold marker found (malformed data).
+        """
+        if "or" not in step_data:
+            return step_data
+        
+        # Search for the alternative marked as gold: true
+        for alt in step_data["or"]:
+            if isinstance(alt, list):
+                # Multi-step alternative - check if first step is marked as gold
+                if alt and alt[0].get("gold", False):
+                    return alt  # Return the full list, not just alt[0]
+            else:
+                # Atomic alternative - check if marked as gold
+                if alt.get("gold", False):
+                    return alt
+        
+        # Fallback to first alternative if no gold marker found (indicates malformed data)
+        # In well-formed step data, there should always be exactly one gold: true
+        print(f"⚠ Warning: No gold alternative found in step. Using first alternative as fallback.")
+        return step_data["or"][0]  # Return as-is (could be list or dict)
+    
+    def _build_context_entry(
+        self,
+        current_step: Dict[str, Any],
+        eval_result: Optional[Dict[str, Any]],
+        history_fields: List[str]
+    ) -> str:
+        """Build a context history entry based on configured fields.
+        
+        Args:
+            current_step: The step definition from steps_enriched.json
+            eval_result: The evaluation result (contains matched_command)
+            history_fields: List of fields to include ("goal", "command", "output", "results")
+            
+        Returns:
+            Formatted context entry string
+        """
+        # Extract reference alternative for gold standard data
+        reference_alt = self._get_gold_alternative(current_step)
+        
+        # Check if it's a multi-step alternative (list) or single step (dict)
+        if isinstance(reference_alt, list):
+            # Multi-step alternative - build entry for each sub-step
+            all_parts = []
+            for i, sub_step in enumerate(reference_alt, 1):
+                sub_parts = []
+                if len(reference_alt) > 1:
+                    sub_parts.append(f"Sub-step {i}:")
+                
+                if "goal" in history_fields:
+                    goal = sub_step.get("goal", "")
+                    if goal:
+                        sub_parts.append(f"  Goal: {goal}")
+                
+                if "command" in history_fields:
+                    command = sub_step.get("command", "")
+                    if command:
+                        sub_parts.append(f"  Command: {command}")
+                
+                if "output" in history_fields:
+                    output = sub_step.get("output", "")
+                    if output:
+                        truncated_output = output[:500] + "..." if len(output) > 500 else output
+                        sub_parts.append(f"  Output: {truncated_output}")
+                
+                if "results" in history_fields:
+                    results = sub_step.get("results", [])
+                    if results:
+                        results_str = "; ".join(results)
+                        sub_parts.append(f"  Results: {results_str}")
+                
+                all_parts.extend(sub_parts)
+            
+            return "\n".join(all_parts) if all_parts else "Completed"
+        
+        else:
+            # Single step (atomic alternative or no alternatives)
+            parts = []
+            
+            if "goal" in history_fields:
+                goal = reference_alt.get("goal", "")
+                if goal:
+                    parts.append(f"Goal: {goal}")
+            
+            if "command" in history_fields:
+                # Use matched command from eval_result if available, otherwise gold command
+                if eval_result and eval_result.get("matched_command"):
+                    command = eval_result["matched_command"]
+                else:
+                    command = reference_alt.get("command", "")
+                if command:
+                    parts.append(f"Command: {command}")
+            
+            if "output" in history_fields:
+                output = reference_alt.get("output", "")
+                if output:
+                    # Truncate output if too long (keep first 500 chars)
+                    truncated_output = output[:500] + "..." if len(output) > 500 else output
+                    parts.append(f"Output: {truncated_output}")
+            
+            if "results" in history_fields:
+                results = reference_alt.get("results", [])
+                if results:
+                    results_str = "; ".join(results)
+                    parts.append(f"Results: {results_str}")
+            
+            # Join all parts with newlines for readability
+            return "\n".join(parts) if parts else "Completed"
+    
     def _finalize_node(self, state: EvaluationState) -> Dict[str, Any]:
         """Finalize evaluation and format results.
         
@@ -337,8 +530,17 @@ class EvaluatorWorkflow:
         
         results = format_evaluation_results(state)
         
+        # Count example steps (excluded from scoring)
+        example_steps = sum(1 for r in state['completed_results'] if r.get('_example_step', False))
+        total_evaluated_steps = len(state['steps']) - example_steps
+        completed_steps = sum(1 for r in state['completed_results'] 
+                             if self._is_step_completed(r) and not r.get('_example_step', False))
+        
         print(f"Final score: {results['score']:.2%}")
-        print(f"Completed {sum(1 for r in state['completed_results'] if self._is_step_completed(r))} / {len(state['steps'])} steps\n")
+        if example_steps > 0:
+            print(f"Completed {completed_steps} / {total_evaluated_steps} steps ({example_steps} example step(s) excluded)\n")
+        else:
+            print(f"Completed {completed_steps} / {total_evaluated_steps} steps\n")
         
         return {"completed_results": state["completed_results"]}
     
@@ -381,9 +583,54 @@ class EvaluatorWorkflow:
         # Build context for this step
         context = build_step_context(state, state["current_step_index"])
         
-        # Get agent's prediction
+        # Get agent's prediction with Phoenix tracing
         try:
-            prediction = self.agent_interface.predict_next_step(context)
+            # If Phoenix is enabled, create a span for the agent prompt
+            if self.enable_phoenix and trace:
+                tracer = trace.get_tracer(__name__)
+                with tracer.start_as_current_span(
+                    "prompt_agent",
+                    attributes={
+                        "step_index": state["current_step_index"],
+                        "iteration": iteration + 1,
+                        "max_iterations": state["max_iterations_per_step"],
+                        "task_mode": state.get("task_mode", "command"),
+                        "evaluation_protocol": state.get("evaluation_protocol", "match_alternatives"),
+                        "challenge": state["challenge_name"],
+                        # Add prompt directly as attributes for better visibility
+                        "input": context,
+                        "input.value": context,  # Phoenix looks for this
+                        "input.mime_type": "text/plain"
+                    }
+                ) as span:
+                    # Also log as event for historical record
+                    span.add_event(
+                        "sending_prompt_to_agent",
+                        attributes={
+                            "prompt": context,
+                            "prompt_length": len(context),
+                            "agent_type": "a2a" if hasattr(self.agent_interface, 'agent_url') else "internal"
+                        }
+                    )
+                    
+                    prediction = self.agent_interface.predict_next_step(context)
+                    
+                    # Log the response with Phoenix-friendly attributes
+                    span.set_attribute("output", prediction)
+                    span.set_attribute("output.value", prediction)  # Phoenix looks for this
+                    span.set_attribute("output.mime_type", "text/plain")
+                    
+                    span.add_event(
+                        "received_agent_response",
+                        attributes={
+                            "prediction": prediction,
+                            "prediction_length": len(prediction)
+                        }
+                    )
+            else:
+                # No Phoenix tracing
+                prediction = self.agent_interface.predict_next_step(context)
+            
             print(f"  Agent predicted: {prediction}")
             
             # Add to predictions list
@@ -395,6 +642,12 @@ class EvaluatorWorkflow:
             }
         except Exception as e:
             print(f"  Error getting agent prediction: {e}")
+            if self.enable_phoenix and trace:
+                # Log the error to Phoenix
+                tracer = trace.get_tracer(__name__)
+                with tracer.start_as_current_span("prompt_agent_error") as span:
+                    span.record_exception(e)
+                    span.set_attribute("error", str(e))
             return {
                 "current_iteration": iteration + 1,
                 "current_step_goal_reached": True  # Stop on error
@@ -465,7 +718,8 @@ class EvaluatorWorkflow:
                 current_step,
                 state["current_iteration"],
                 state["max_iterations_per_step"],
-                accumulated_commands=accumulated
+                accumulated_commands=accumulated,
+                include_goal=state.get("include_goal", "always")
             )
             
             print(f"  Goal check: {goal_check['reason']}")
@@ -624,6 +878,11 @@ class EvaluatorWorkflow:
             "evaluator_llm_config": evaluator_llm_config,
             "max_iterations_per_step": self.max_iterations_per_step,
             "include_goal": self.include_goal,
+            "include_tactic": self.include_tactic,
+            "include_prerequisites": self.include_prerequisites,
+            "history_context": self.history_context,
+            "evaluation_protocol": self.step_evaluator.evaluation_protocol,
+            "task_mode": self.step_evaluator.task_mode,
             "current_iteration": 0,
             "current_step_goal_reached": False,
             "_step_eval_result": None,
