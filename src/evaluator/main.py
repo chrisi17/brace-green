@@ -102,15 +102,15 @@ def parse_args():
         "--include-goal",
         type=str,
         choices=["first", "always", "never"],
-        default="always",
-        help="When to include goals in prompts: 'first' (first step only), 'always' (all steps), 'never' (no steps) (default: always)"
+        default="first",
+        help="When to include goals in prompts: 'first' (first step only), 'always' (all steps), 'never' (no steps) (default: first)"
     )
     parser.add_argument(
         "--include-tactic",
         type=str,
         choices=["first", "always", "never"],
-        default="always",
-        help="When to include tactics in prompts: 'first' (first step only), 'always' (all steps), 'never' (no steps) (default: always)"
+        default="first",
+        help="When to include tactics in prompts: 'first' (first step only), 'always' (all steps), 'never' (no steps) (default: first)"
     )
     parser.add_argument(
         "--include-prerequisites",

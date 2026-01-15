@@ -76,13 +76,13 @@ def build_step_context(state: Dict[str, Any], step_index: int) -> str:
         contraindications = reference_alt.get("contraindications", [])
     
     # Determine what to include based on configuration
-    include_goal_config = state.get("include_goal", "always")
+    include_goal_config = state.get("include_goal", "first")
     should_include_goal = (
         include_goal_config == "always" or
         (include_goal_config == "first" and step_index == 0)
     )
     
-    include_tactic_config = state.get("include_tactic", "always")
+    include_tactic_config = state.get("include_tactic", "first")
     should_include_tactic = (
         include_tactic_config == "always" or
         (include_tactic_config == "first" and step_index == 0)

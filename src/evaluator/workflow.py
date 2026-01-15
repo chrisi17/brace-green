@@ -34,8 +34,8 @@ class EvaluatorWorkflow:
         step_evaluator: StepEvaluator,
         max_iterations_per_step: int = 10,
         enable_phoenix: bool = False,
-        include_goal: str = "always",
-        include_tactic: str = "always",
+        include_goal: str = "first",
+        include_tactic: str = "first",
         include_prerequisites: str = "always",
         history_context: List[str] = None
     ):
@@ -46,8 +46,8 @@ class EvaluatorWorkflow:
             step_evaluator: Evaluator for comparing predictions
             max_iterations_per_step: Maximum iterations per step
             enable_phoenix: Whether to enable Phoenix tracing (default: True)
-            include_goal: When to include goals in prompts: "first", "always", or "never" (default: "always")
-            include_tactic: When to include tactics in prompts: "first", "always", or "never" (default: "always")
+            include_goal: When to include goals in prompts: "first", "always", or "never" (default: "first")
+            include_tactic: When to include tactics in prompts: "first", "always", or "never" (default: "first")
             include_prerequisites: When to include prerequisites in prompts: "first", "always", or "never" (default: "always")
             history_context: Fields to include in context history: "goal", "command", "output", "results" 
                            (default: all fields)
