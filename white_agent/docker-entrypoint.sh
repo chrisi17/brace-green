@@ -1,33 +1,74 @@
 #!/bin/bash
 # Docker entrypoint for white agent
-# Reads environment variables and builds CLI arguments
+# Reads environment variables and/or command-line arguments and builds CLI arguments
 
 set -e
 
 # Build command with arguments from environment variables or defaults
 CMD="uv run white_agent/server.py"
 
-# Add host (default: 0.0.0.0 for Docker)
-CMD="$CMD --host ${WHITE_AGENT_HOST:-0.0.0.0}"
+# Parse command-line arguments if provided, otherwise use environment variables
+# Command-line arguments take precedence over environment variables
 
-# Add port (default: 8000)
-CMD="$CMD --port ${WHITE_AGENT_PORT:-8000}"
+# Parse arguments
+HOST="${WHITE_AGENT_HOST:-0.0.0.0}"
+PORT="${WHITE_AGENT_PORT:-8000}"
+MODEL="${WHITE_AGENT_MODEL:-gpt-4o}"
+TEMPERATURE="${WHITE_AGENT_TEMPERATURE:-0.7}"
+MAX_TOKENS="${WHITE_AGENT_MAX_TOKENS:-500}"
+TASK_MODE="${WHITE_AGENT_TASK_MODE:-command}"
+CARD_URL="${WHITE_AGENT_CARD_URL:-}"
 
-# Add model (default: gpt-4o)
-CMD="$CMD --model ${WHITE_AGENT_MODEL:-gpt-4o}"
+# Parse command-line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --host)
+            HOST="$2"
+            shift 2
+            ;;
+        --port)
+            PORT="$2"
+            shift 2
+            ;;
+        --model)
+            MODEL="$2"
+            shift 2
+            ;;
+        --temperature)
+            TEMPERATURE="$2"
+            shift 2
+            ;;
+        --max-tokens)
+            MAX_TOKENS="$2"
+            shift 2
+            ;;
+        --task-mode)
+            TASK_MODE="$2"
+            shift 2
+            ;;
+        --card-url)
+            CARD_URL="$2"
+            shift 2
+            ;;
+        *)
+            # Unknown argument, pass through
+            CMD="$CMD $1"
+            shift
+            ;;
+    esac
+done
 
-# Add temperature (default: 0.7)
-CMD="$CMD --temperature ${WHITE_AGENT_TEMPERATURE:-0.7}"
-
-# Add max-tokens (default: 500)
-CMD="$CMD --max-tokens ${WHITE_AGENT_MAX_TOKENS:-500}"
-
-# Add task-mode (default: command)
-CMD="$CMD --task-mode ${WHITE_AGENT_TASK_MODE:-command}"
+# Build final command
+CMD="$CMD --host $HOST"
+CMD="$CMD --port $PORT"
+CMD="$CMD --model $MODEL"
+CMD="$CMD --temperature $TEMPERATURE"
+CMD="$CMD --max-tokens $MAX_TOKENS"
+CMD="$CMD --task-mode $TASK_MODE"
 
 # Add card-url if provided
-if [ -n "$WHITE_AGENT_CARD_URL" ]; then
-    CMD="$CMD --card-url $WHITE_AGENT_CARD_URL"
+if [ -n "$CARD_URL" ]; then
+    CMD="$CMD --card-url $CARD_URL"
 fi
 
 echo "Starting white agent with: $CMD"
