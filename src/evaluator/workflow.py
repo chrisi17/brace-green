@@ -24,6 +24,16 @@ except ImportError:
     register = None
     trace = None
 
+# ANSI color codes for terminal output
+class Colors:
+    """ANSI color codes for terminal output."""
+    GREEN = '\033[92m'
+    RED = '\033[91m'
+    YELLOW = '\033[93m'
+    BLUE = '\033[94m'
+    BOLD = '\033[1m'
+    RESET = '\033[0m'
+
 
 class EvaluatorWorkflow:
     """LangGraph workflow for step-by-step agent evaluation."""
@@ -76,10 +86,10 @@ class EvaluatorWorkflow:
                     self.phoenix_tracer = trace.get_tracer_provider()
                 else:
                     # Fallback: initialize here if not done earlier (not recommended)
-                    print("⚠ Phoenix not initialized early - initializing now (may affect trace context)")
+                    print(f"{Colors.YELLOW}⚠ Phoenix not initialized early - initializing now (may affect trace context){Colors.RESET}")
                     self._init_phoenix()
             except Exception as e:
-                print(f"⚠ Warning: Phoenix check failed: {e}")
+                print(f"{Colors.YELLOW}⚠ Warning: Phoenix check failed: {e}{Colors.RESET}")
                 self.enable_phoenix = False
                 self.phoenix_tracer = None
         
@@ -108,8 +118,8 @@ class EvaluatorWorkflow:
             print(f"  Project: {project_name}")
             
         except Exception as e:
-            print(f"⚠ Warning: Could not initialize Phoenix tracing: {e}")
-            print("  Continuing without Phoenix tracing...")
+            print(f"{Colors.YELLOW}⚠ Warning: Could not initialize Phoenix tracing: {e}{Colors.RESET}")
+            print(f"{Colors.YELLOW}  Continuing without Phoenix tracing...{Colors.RESET}")
             self.enable_phoenix = False
             self.phoenix_tracer = None
     
@@ -230,10 +240,10 @@ class EvaluatorWorkflow:
             else:
                 goal = reference_alt.get("goal", "Unknown goal")
             
-            print(f"\n=== Step {step_index + 1}/{len(state['steps'])} (Example - Not Evaluated) ===")
+            print(f"\n{Colors.BOLD}=== Step {step_index + 1}/{len(state['steps'])} (Example - Not Evaluated) ==={Colors.RESET}")
             print(f"Goal: {goal}")
-            print(f"⚠ Skipping evaluation of first step (task_mode=goal + include_goal=first)")
-            print(f"  This step will be added to context as an example of what a goal looks like")
+            print(f"{Colors.YELLOW}⚠ Skipping evaluation of first step (task_mode=goal + include_goal=first){Colors.RESET}")
+            print(f"{Colors.YELLOW}  This step will be added to context as an example of what a goal looks like{Colors.RESET}")
             print(f"  Actual evaluation starts from step 2\n")
             
             # Build result for this step (NOT marking as completed)
@@ -284,13 +294,13 @@ class EvaluatorWorkflow:
                 goal = reference_alt.get("goal", "Unknown goal")
                 tactic = reference_alt.get("tactic", "")
             
-            print(f"\n=== Preparing step {step_index + 1}/{len(state['steps'])} ===")
+            print(f"\n{Colors.BOLD}=== Preparing step {step_index + 1}/{len(state['steps'])} ==={Colors.RESET}")
             print(f"Goal: {goal}")
             if tactic:
                 print(f"Tactic: {tactic}")
             print()
         else:
-            print(f"\n=== Preparing step {step_index + 1}/{len(state['steps'])} ===\n")
+            print(f"\n{Colors.BOLD}=== Preparing step {step_index + 1}/{len(state['steps'])} ==={Colors.RESET}\n")
         
         # Reset for new step
         return {
@@ -321,7 +331,7 @@ class EvaluatorWorkflow:
         else:
             goal = reference_alt.get("goal", "Unknown goal")
         
-        print(f"=== Evaluating step {step_index + 1} ===")
+        print(f"{Colors.BOLD}=== Evaluating step {step_index + 1} ==={Colors.RESET}")
         print(f"Goal: {goal}\n")
         
         # Run the step evaluation subgraph with recursion limit
@@ -378,11 +388,11 @@ class EvaluatorWorkflow:
         else:
             goal = reference_alt.get("goal", "")
         
-        # Show result status
+        # Show result status with color coding
         if eval_result and eval_result.get("completed"):
-            status = "✓ COMPLETED"
+            status = f"{Colors.GREEN}✓ COMPLETED{Colors.RESET}"
         else:
-            status = "✗ NOT COMPLETED"
+            status = f"{Colors.RED}✗ NOT COMPLETED{Colors.RESET}"
         
         print(f"{status} Step {step_index + 1} - Goal: {goal}\n")
         
@@ -427,7 +437,7 @@ class EvaluatorWorkflow:
         
         # Fallback to first alternative if no gold marker found (indicates malformed data)
         # In well-formed step data, there should always be exactly one gold: true
-        print(f"⚠ Warning: No gold alternative found in step. Using first alternative as fallback.")
+        print(f"{Colors.YELLOW}⚠ Warning: No gold alternative found in step. Using first alternative as fallback.{Colors.RESET}")
         return step_data["or"][0]  # Return as-is (could be list or dict)
     
     def _build_context_entry(
@@ -527,7 +537,7 @@ class EvaluatorWorkflow:
         Returns:
             Updated state with formatted results
         """
-        print("\n=== Finalizing evaluation ===\n")
+        print(f"\n{Colors.BOLD}=== Finalizing evaluation ==={Colors.RESET}\n")
         
         results = format_evaluation_results(state)
         
@@ -539,9 +549,9 @@ class EvaluatorWorkflow:
         
         print(f"Final score: {results['score']:.2%}")
         if example_steps > 0:
-            print(f"Completed {completed_steps} / {total_evaluated_steps} steps ({example_steps} example step(s) excluded)\n")
+            print(f"{Colors.BOLD}Completed {completed_steps} / {total_evaluated_steps} steps ({example_steps} example step(s) excluded){Colors.RESET}\n")
         else:
-            print(f"Completed {completed_steps} / {total_evaluated_steps} steps\n")
+            print(f"{Colors.BOLD}Completed {completed_steps} / {total_evaluated_steps} steps{Colors.RESET}\n")
         
         return {"completed_results": state["completed_results"]}
     
@@ -709,9 +719,11 @@ class EvaluatorWorkflow:
                 goal
             )
             
-            print(f"  Match: {eval_result['completed']}, "
+            # Color code the match result
+            match_color = Colors.GREEN if eval_result['completed'] else Colors.RED
+            print(f"  {match_color}Match: {eval_result['completed']}, "
                   f"Confidence: {eval_result['confidence']:.2f}, "
-                  f"Alternative: {eval_result['matched_alternative_index']}")
+                  f"Alternative: {eval_result['matched_alternative_index']}{Colors.RESET}")
             
             # Check if goal is reached
             goal_check = self.step_evaluator.check_goal_reached(
@@ -723,7 +735,9 @@ class EvaluatorWorkflow:
                 include_goal=state.get("include_goal", "always")
             )
             
-            print(f"  Goal check: {goal_check['reason']}")
+            # Color code the goal check based on whether goal was reached
+            goal_color = Colors.GREEN if goal_check['goal_reached'] else Colors.YELLOW
+            print(f"  {goal_color}Goal check: {goal_check['reason']}{Colors.RESET}")
             
             # Handle fine-grained commands - accumulate them
             # But only if we haven't hit max iterations
@@ -763,7 +777,7 @@ class EvaluatorWorkflow:
             }
             
         except Exception as e:
-            print(f"  Error during evaluation: {e}")
+            print(f"  {Colors.RED}Error during evaluation: {e}{Colors.RESET}")
             return {"current_step_goal_reached": True}
     
     def _build_step_result(self, step_data: Any, eval_result: Optional[Dict[str, Any]], task_mode: str = "command") -> Dict[str, Any]:
@@ -883,7 +897,7 @@ class EvaluatorWorkflow:
         """
         # Safety check: stop if we've exceeded max iterations
         if state["current_iteration"] >= state["max_iterations_per_step"]:
-            print(f"  ⚠ Max iterations ({state['max_iterations_per_step']}) reached, stopping")
+            print(f"  {Colors.YELLOW}⚠ Max iterations ({state['max_iterations_per_step']}) reached, stopping{Colors.RESET}")
             return "done"
         
         if state["current_step_goal_reached"]:
@@ -974,9 +988,9 @@ class EvaluatorWorkflow:
                     evaluator_llm_config=evaluator_llm_config
                 )
                 all_results.append(result)
-                print(f"✓ Completed {challenge_name}: Score = {result['score']:.2%}")
+                print(f"{Colors.GREEN}✓ Completed {challenge_name}: Score = {result['score']:.2%}{Colors.RESET}")
             except Exception as e:
-                print(f"✗ Failed {challenge_name}: {e}")
+                print(f"{Colors.RED}✗ Failed {challenge_name}: {e}{Colors.RESET}")
                 error_result = {
                     "challenge": challenge_name,
                     "error": str(e),

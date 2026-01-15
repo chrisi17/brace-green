@@ -12,6 +12,16 @@ from .step_evaluator import StepEvaluator
 from .workflow import EvaluatorWorkflow
 from .utils import save_evaluation_results, discover_all_challenges
 
+# ANSI color codes for terminal output
+class Colors:
+    """ANSI color codes for terminal output."""
+    GREEN = '\033[92m'
+    RED = '\033[91m'
+    YELLOW = '\033[93m'
+    BLUE = '\033[94m'
+    BOLD = '\033[1m'
+    RESET = '\033[0m'
+
 
 def parse_args():
     """Parse command line arguments.
@@ -359,10 +369,14 @@ def main():
         print("=" * 70)
         
         if len(challenge_names) == 1:
-            print(f"Final Score: {results['score']:.2%}")
+            score = results['score']
+            score_color = Colors.GREEN if score >= 0.7 else Colors.YELLOW if score >= 0.4 else Colors.RED
+            print(f"{Colors.BOLD}Final Score: {score_color}{score:.2%}{Colors.RESET}")
             print(f"Challenge: {results['challenge']}")
         else:
-            print(f"Overall Score: {results['overall_score']:.2%}")
+            overall_score = results['overall_score']
+            score_color = Colors.GREEN if overall_score >= 0.7 else Colors.YELLOW if overall_score >= 0.4 else Colors.RED
+            print(f"{Colors.BOLD}Overall Score: {score_color}{overall_score:.2%}{Colors.RESET}")
             print(f"Challenges Evaluated: {results['challenges_evaluated']}")
             print(f"Challenges Successful: {results.get('challenges_successful', 0)}")
         

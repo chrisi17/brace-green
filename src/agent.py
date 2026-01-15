@@ -11,6 +11,16 @@ from .evaluator.agent_interface import create_agent_interface
 from .evaluator.step_evaluator import StepEvaluator
 from .evaluator.utils import discover_all_challenges
 
+# ANSI color codes for terminal output
+class Colors:
+    """ANSI color codes for terminal output."""
+    GREEN = '\033[92m'
+    RED = '\033[91m'
+    YELLOW = '\033[93m'
+    BLUE = '\033[94m'
+    BOLD = '\033[1m'
+    RESET = '\033[0m'
+
 
 class EvalRequest(BaseModel):
     """Request format sent by the AgentBeats platform to green agents."""
@@ -214,7 +224,7 @@ class Agent:
                 )
 
                 all_results.append(result)
-                print(f"✓ Completed {challenge_name}: Score = {result['score']:.2%}")
+                print(f"{Colors.GREEN}✓ Completed {challenge_name}: Score = {result['score']:.2%}{Colors.RESET}")
                 
                 await updater.update_status(
                     TaskState.working, new_agent_text_message(f"Completed {challenge_name}: Score = {result['score']:.2%}")
@@ -227,7 +237,7 @@ class Agent:
                     "score": 0.0
                 }
                 all_results.append(error_result)
-                print(f"✗ Failed {challenge_name}: {e}")
+                print(f"{Colors.RED}✗ Failed {challenge_name}: {e}{Colors.RESET}")
                 
                 await updater.update_status(
                     TaskState.working, new_agent_text_message(f"Failed {challenge_name}: {e}")
@@ -236,10 +246,16 @@ class Agent:
         # Aggregate results
         total_score = sum(r.get("score", 0.0) for r in all_results) / len(all_results) if all_results else 0.0
 
+        # Gather data version information
+        data_version_full = os.getenv("DATA_VERSION_FULL", "unknown")
+        data_commit_sha = os.getenv("DATA_COMMIT_SHA", "unknown")
+
         # Create summary text
         summary_lines = [
             f"Evaluation completed for {len(challenges_to_evaluate)} challenge(s)",
             f"Overall Score: {total_score:.2%}",
+            f"Data Version: {data_version_full}",
+            f"Commit SHA: {data_commit_sha}",
             "",
             "Results:"
         ]
@@ -268,6 +284,14 @@ class Agent:
                     "evaluation_protocol": evaluation_protocol,
                     "task_mode": task_mode,
                     "timeout": agent_config.get("timeout"),
+                    "data_version": {
+                        "version": data_version_full,
+                        "commit_sha": data_commit_sha,
+                        "commit_short": os.getenv("DATA_COMMIT_SHORT", "unknown"),
+                        "commit_describe": os.getenv("DATA_COMMIT_DESCRIBE", "unknown"),
+                        "commit_date": os.getenv("DATA_COMMIT_DATE", "unknown"),
+                        "repo_url": os.getenv("DATA_REPO_URL", "unknown"),
+                    },
                     "results": all_results
                 }))
             ],

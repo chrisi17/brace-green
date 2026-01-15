@@ -18,6 +18,29 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Verbosity setting
+VERBOSE = os.getenv("WHITE_AGENT_VERBOSE", "false").lower() in ("true", "1", "yes")
+
+
+def _truncate_context(context: str, num_lines: int = 5) -> str:
+    """Truncate context to first and last N lines.
+    
+    Args:
+        context: Full context string
+        num_lines: Number of lines to show at start and end
+        
+    Returns:
+        Truncated context with ellipsis in the middle
+    """
+    lines = context.split('\n')
+    if len(lines) <= (num_lines * 2):
+        return context
+    
+    first_lines = lines[:num_lines]
+    last_lines = lines[-num_lines:]
+    
+    return '\n'.join(first_lines) + f'\n\n... ({len(lines) - num_lines * 2} lines omitted) ...\n\n' + '\n'.join(last_lines)
+
 
 SYSTEM_PROMPTS = {
     "command": """You are a skilled penetration tester working on a capture-the-flag (CTF) challenge.
@@ -90,10 +113,10 @@ class Agent:
         # Initialize mock agent if in mock mode
         if self.mock_mode:
             self.mock_agent = MockAgent(task_mode=task_mode)
-            logger.info(f"Initialized white agent in MOCK mode (task_mode={task_mode})")
+            logger.info(f"Initialized white agent in MOCK mode (task_mode={task_mode}, verbose={VERBOSE})")
         else:
             self.mock_agent = None
-            logger.info(f"Initialized white agent in LLM mode (model={model}, task_mode={task_mode})")
+            logger.info(f"Initialized white agent in LLM mode (model={model}, task_mode={task_mode}, verbose={VERBOSE})")
 
     async def run(self, message: Message, updater: TaskUpdater) -> None:
         """Process incoming message and generate CTF command prediction.
@@ -108,7 +131,10 @@ class Agent:
         logger.info("=" * 70)
         logger.info("WHITE AGENT: Prompted with task:")
         logger.info("-" * 70)
-        logger.info(context)
+        if VERBOSE:
+            logger.info(context)
+        else:
+            logger.info(_truncate_context(context))
         logger.info("-" * 70)
 
         await updater.update_status(TaskState.working, new_agent_text_message("Analyzing scenario..."))
@@ -136,7 +162,14 @@ class Agent:
             # Log response
             logger.info("WHITE AGENT: Returning answer:")
             logger.info("-" * 70)
-            logger.info(prediction)
+            if VERBOSE:
+                logger.info(prediction)
+            else:
+                # For responses, truncate if longer than 200 chars
+                if len(prediction) > 200:
+                    logger.info(prediction[:100] + f"\n\n... ({len(prediction) - 200} chars omitted) ...\n\n" + prediction[-100:])
+                else:
+                    logger.info(prediction)
             logger.info("=" * 70)
             logger.info("")
             
