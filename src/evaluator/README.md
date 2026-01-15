@@ -96,9 +96,9 @@ python -m src.evaluator.main \
 # Custom configuration for internal agent
 python -m src.evaluator.main \
   --challenge Funbox \
-  --agent-model gpt-5 \
+  --agent-model gpt-5.1 \
   --agent-temperature 0.7 \
-  --evaluator-model gpt-5 \
+  --evaluator-model gpt-5.1 \
   --max-iterations 10 \
   --output results.json \
   --verbose
@@ -145,7 +145,7 @@ python -m src.evaluator.main \
 - `--agent-url`: URL of remote A2A agent to evaluate (enables A2A mode)
 
 **Agent Configuration (Internal Mode):**
-- `--agent-model`: Model for agent under test (default: gpt-5)
+- `--agent-model`: Model for agent under test (default: gpt-5.1)
 - `--agent-temperature`: Temperature for agent LLM (default: 0.7)
 - `--agent-max-tokens`: Max tokens for agent (default: 500)
 
@@ -153,7 +153,7 @@ python -m src.evaluator.main \
 - `--agent-timeout`: Timeout for A2A calls in seconds (default: 300)
 
 **Evaluator Configuration:**
-- `--evaluator-model`: Model for evaluator (default: gpt-5)
+- `--evaluator-model`: Model for evaluator (default: gpt-5.1)
 - `--evaluator-max-tokens`: Max tokens for evaluator (default: 2000)
 
 **Workflow Configuration:**

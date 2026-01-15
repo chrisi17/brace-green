@@ -52,7 +52,7 @@ class LLMAgentInterface(AgentInterface):
     
     def __init__(
         self,
-        model: str = "gpt-5",
+        model: str = "gpt-5.1",
         temperature: float = 0.7,
         max_tokens: int = 500,
         api_key: Optional[str] = None,
@@ -63,7 +63,7 @@ class LLMAgentInterface(AgentInterface):
         """Initialize the LLM agent interface.
         
         Args:
-            model: Model name for litellm (e.g., "gpt-5", "claude-sonnet-4")
+            model: Model name for litellm (e.g., "gpt-5.1", "claude-sonnet-4")
             temperature: Sampling temperature (0.0-1.0)
             max_tokens: Maximum tokens in response
             api_key: API key (falls back to environment variable)
@@ -216,7 +216,7 @@ class LLMAgentInterface(AgentInterface):
             Configured LLMAgentInterface instance
         """
         return cls(
-            model=config.get("model", "gpt-5"),
+            model=config.get("model", "gpt-5.1"),
             temperature=config.get("temperature", 0.7),
             max_tokens=config.get("max_tokens", 500),
             api_key=config.get("api_key"),
